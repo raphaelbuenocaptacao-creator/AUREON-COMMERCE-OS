@@ -7,9 +7,17 @@ export const metadata: Metadata = {
   description: 'Inteligência para dropshipping, infoprodutos e marketing digital.',
   applicationName: 'AUREON Commerce OS',
   manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'AUREON',
+  },
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: [
+      { url: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
+      { url: '/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+    ],
+    apple: '/icon-192.svg',
   },
 };
 
