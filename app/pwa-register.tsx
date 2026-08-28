@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 
 export default function PwaRegister() {
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const isSecure = window.location.protocol === 'https:' || isLocalhost;
+    if (!isSecure || !('serviceWorker' in navigator)) return;
 
     const register = async () => {
       try {
