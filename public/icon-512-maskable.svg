@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AUREON Commerce OS">
+  <rect width="512" height="512" fill="#0b0b0b"/>
+  <circle cx="256" cy="256" r="190" fill="#111111"/>
+  <path d="M256 116 382 390h-58l-31-68h-74l-31 68h-58L256 116Zm0 120-24 54h48l-24-54Z" fill="#f5c451"/>
+</svg>
