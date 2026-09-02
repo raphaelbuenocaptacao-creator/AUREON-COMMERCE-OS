@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'aureon-commerce-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v5-safe`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v6-safe`;
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -31,7 +31,7 @@ function isCacheSafe(request) {
 }
 
 function isSafeResponse(response) {
-  if (!response || !response.ok || response.type !== 'basic') return false;
+  if (!response || !response.ok || response.type !== 'basic' || response.status === 206) return false;
   const cacheControl = response.headers.get('cache-control') || '';
   if (/\b(private|no-store)\b/i.test(cacheControl)) return false;
   if (response.headers.has('set-cookie')) return false;
