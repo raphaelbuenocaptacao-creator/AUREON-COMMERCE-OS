@@ -1,11 +1,11 @@
 const CACHE_PREFIX = 'aureon-commerce-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v6-safe`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v7-raster-safe`;
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
-  '/icon-192.svg',
-  '/icon-512.svg',
-  '/icon-512-maskable.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-512-maskable.png',
 ];
 const PRIVATE_PATH = /\/(api|auth|login|logout|admin|session|sessions|token|tokens|account|profile|me)(\/|$)/i;
 const PRIVATE_QUERY_KEYS = new Set([
@@ -26,15 +26,16 @@ function isCacheSafe(request) {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return false;
   if (request.headers.has('authorization') || request.headers.has('cookie')) return false;
+  if (request.headers.has('range') || request.headers.has('if-range')) return false;
   if (PRIVATE_PATH.test(url.pathname) || hasPrivateQuery(url)) return false;
   return true;
 }
 
 function isSafeResponse(response) {
-  if (!response || !response.ok || response.type !== 'basic' || response.status === 206) return false;
+  if (!response || !response.ok || response.type !== 'basic' || response.status === 206 || response.redirected) return false;
   const cacheControl = response.headers.get('cache-control') || '';
   if (/\b(private|no-store)\b/i.test(cacheControl)) return false;
-  if (response.headers.has('set-cookie')) return false;
+  if (response.headers.has('set-cookie') || response.headers.has('content-range')) return false;
   return true;
 }
 
@@ -42,7 +43,7 @@ async function precacheShell() {
   const cache = await caches.open(CACHE_NAME);
   await Promise.all(APP_SHELL.map(async (path) => {
     try {
-      const request = new Request(path, { credentials: 'omit', cache: 'reload' });
+      const request = new Request(path, { credentials: 'omit', cache: 'reload', redirect: 'error' });
       const response = await fetch(request);
       if (isSafeResponse(response)) await cache.put(request, response.clone());
     } catch (_) {}
@@ -73,7 +74,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(new Request(request, { cache: 'no-store' }))
+      fetch(new Request(request, { cache: 'no-store', redirect: 'error' }))
         .catch(async () => {
           const cache = await caches.open(CACHE_NAME);
           return (await cache.match('/')) || Response.error();
@@ -90,7 +91,7 @@ self.addEventListener('fetch', (event) => {
     const cached = await cache.match(request);
     if (cached) return cached;
 
-    const response = await fetch(request, { cache: 'no-store', credentials: 'omit' });
+    const response = await fetch(request, { cache: 'no-store', credentials: 'omit', redirect: 'error' });
     if (isSafeResponse(response)) {
       event.waitUntil(cache.put(request, response.clone()));
     }
