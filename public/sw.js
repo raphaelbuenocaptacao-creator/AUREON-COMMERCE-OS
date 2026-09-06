@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'aureon-commerce-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v7-raster-safe`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v8-raster-safe`;
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -36,6 +36,8 @@ function isSafeResponse(response) {
   const cacheControl = response.headers.get('cache-control') || '';
   if (/\b(private|no-store)\b/i.test(cacheControl)) return false;
   if (response.headers.has('set-cookie') || response.headers.has('content-range')) return false;
+  const vary = response.headers.get('vary') || '';
+  if (/(^|,|\s)(cookie|authorization)(\s|,|$)/i.test(vary)) return false;
   return true;
 }
 
