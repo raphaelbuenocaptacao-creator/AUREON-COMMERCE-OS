@@ -1,18 +1,11 @@
 const CACHE_PREFIX = 'aureon-commerce-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v8-raster-safe`;
-const APP_SHELL = [
-  '/',
-  '/manifest.webmanifest',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-512-maskable.png',
-];
+const CACHE_NAME = `${CACHE_PREFIX}shell-v9-pages-safe`;
+const SCOPE = self.registration.scope;
+const scopeUrl = new URL(SCOPE);
+const at = (path) => new URL(path.replace(/^\//, ''), SCOPE).toString();
+const APP_SHELL = [at(''), at('manifest.webmanifest'), at('icon-192.png'), at('icon-512.png'), at('icon-512-maskable.png')];
 const PRIVATE_PATH = /\/(api|auth|login|logout|admin|session|sessions|token|tokens|account|profile|me)(\/|$)/i;
-const PRIVATE_QUERY_KEYS = new Set([
-  'token', 'access_token', 'refresh_token', 'password', 'secret', 'session',
-  'session_id', 'auth', 'authorization', 'api_key', 'apikey', 'code',
-  'credential', 'credentials',
-]);
+const PRIVATE_QUERY_KEYS = new Set(['token','access_token','refresh_token','password','secret','session','session_id','auth','authorization','api_key','apikey','code','credential','credentials']);
 
 function hasPrivateQuery(url) {
   for (const key of url.searchParams.keys()) {
@@ -37,15 +30,15 @@ function isSafeResponse(response) {
   if (/\b(private|no-store)\b/i.test(cacheControl)) return false;
   if (response.headers.has('set-cookie') || response.headers.has('content-range')) return false;
   const vary = response.headers.get('vary') || '';
-  if (/(^|,|\s)(cookie|authorization)(\s|,|$)/i.test(vary)) return false;
+  if (vary.trim() === '*' || /(^|,|\s)(cookie|authorization)(\s|,|$)/i.test(vary)) return false;
   return true;
 }
 
 async function precacheShell() {
   const cache = await caches.open(CACHE_NAME);
-  await Promise.all(APP_SHELL.map(async (path) => {
+  await Promise.all(APP_SHELL.map(async (url) => {
     try {
-      const request = new Request(path, { credentials: 'omit', cache: 'reload', redirect: 'error' });
+      const request = new Request(url, { credentials: 'omit', cache: 'reload', redirect: 'error' });
       const response = await fetch(request);
       if (isSafeResponse(response)) await cache.put(request, response.clone());
     } catch (_) {}
@@ -58,16 +51,10 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      caches.keys().then((keys) => Promise.all(
-        keys
-          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )),
-      self.clients.claim(),
-    ])
-  );
+  event.waitUntil(Promise.all([
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key)))),
+    self.clients.claim(),
+  ]));
 });
 
 self.addEventListener('fetch', (event) => {
@@ -75,28 +62,22 @@ self.addEventListener('fetch', (event) => {
   if (!isCacheSafe(request)) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(new Request(request, { cache: 'no-store', redirect: 'error' }))
-        .catch(async () => {
-          const cache = await caches.open(CACHE_NAME);
-          return (await cache.match('/')) || Response.error();
-        }),
-    );
+    event.respondWith(fetch(new Request(request, { cache: 'no-store', redirect: 'error' })).catch(async () => {
+      const cache = await caches.open(CACHE_NAME);
+      return (await cache.match(at(''))) || Response.error();
+    }));
     return;
   }
 
   const url = new URL(request.url);
-  if (url.search || !APP_SHELL.includes(url.pathname)) return;
+  if (url.search || url.origin !== scopeUrl.origin || !APP_SHELL.includes(url.toString())) return;
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
     if (cached) return cached;
-
     const response = await fetch(request, { cache: 'no-store', credentials: 'omit', redirect: 'error' });
-    if (isSafeResponse(response)) {
-      event.waitUntil(cache.put(request, response.clone()));
-    }
+    if (isSafeResponse(response)) event.waitUntil(cache.put(request, response.clone()));
     return response;
   })());
 });
