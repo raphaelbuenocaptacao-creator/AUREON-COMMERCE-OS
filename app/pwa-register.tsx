@@ -15,10 +15,14 @@ export default function PwaRegister() {
     const isSecure = window.location.protocol === 'https:' || isLocalhost;
     if (!isSecure || !('serviceWorker' in navigator)) return;
 
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    const swUrl = `${basePath}/sw.js?v=9-pages-safe`;
+    const scope = `${basePath}/` || '/';
+
     const register = async () => {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
+        const registration = await navigator.serviceWorker.register(swUrl, {
+          scope,
           updateViaCache: 'none',
         });
         await registration.update();
@@ -37,11 +41,8 @@ export default function PwaRegister() {
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onAppInstalled);
 
-    if (document.readyState === 'complete') {
-      void register();
-    } else {
-      window.addEventListener('load', register, { once: true });
-    }
+    if (document.readyState === 'complete') void register();
+    else window.addEventListener('load', register, { once: true });
 
     return () => {
       window.removeEventListener('load', register);
@@ -62,15 +63,8 @@ export default function PwaRegister() {
         setInstallPrompt(null);
       }}
       style={{
-        position: 'fixed',
-        right: 16,
-        bottom: 16,
-        zIndex: 1000,
-        border: 0,
-        borderRadius: 12,
-        padding: '12px 16px',
-        fontWeight: 700,
-        cursor: 'pointer',
+        position: 'fixed', right: 16, bottom: 16, zIndex: 1000, border: 0,
+        borderRadius: 12, padding: '12px 16px', fontWeight: 700, cursor: 'pointer',
       }}
     >
       Instalar app
