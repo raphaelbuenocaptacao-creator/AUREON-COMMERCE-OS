@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'aureon-commerce-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v9-pages-safe`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v10-private-vary-star-safe`;
 const SCOPE = self.registration.scope;
 const scopeUrl = new URL(SCOPE);
 const at = (path) => new URL(path.replace(/^\//, ''), SCOPE).toString();
@@ -30,7 +30,8 @@ function isSafeResponse(response) {
   if (/\b(private|no-store)\b/i.test(cacheControl)) return false;
   if (response.headers.has('set-cookie') || response.headers.has('content-range')) return false;
   const vary = response.headers.get('vary') || '';
-  if (vary.trim() === '*' || /(^|,|\s)(cookie|authorization)(\s|,|$)/i.test(vary)) return false;
+  const varyKeys = vary.toLowerCase().split(',').map((value) => value.trim()).filter(Boolean);
+  if (varyKeys.some((key) => key === '*' || key === 'cookie' || key === 'authorization')) return false;
   return true;
 }
 
