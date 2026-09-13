@@ -16,7 +16,7 @@ export default function PwaRegister() {
     if (!isSecure || !('serviceWorker' in navigator)) return;
 
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    const swUrl = `${basePath}/sw.js?v=10-private-vary-star-safe`;
+    const swUrl = `${basePath}/sw.js?v=shell-v11-private-vary-range-safe`;
     const scope = `${basePath}/` || '/';
 
     const register = async () => {
