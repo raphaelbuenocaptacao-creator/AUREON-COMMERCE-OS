@@ -1,0 +1,55 @@
+name: AUREON Commerce PWA Audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pwa-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: Validate PWA contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const sw = fs.readFileSync('public/sw.js', 'utf8');
+          const reg = fs.readFileSync('app/pwa-register.tsx', 'utf8');
+          const manifest = fs.readFileSync('app/manifest.ts', 'utf8');
+          const layout = fs.readFileSync('app/layout.tsx', 'utf8');
+
+          const cacheMatch = sw.match(/CACHE_NAME\s*=\s*`\$\{CACHE_PREFIX\}([^`]+)`/);
+          if (!cacheMatch) throw new Error('CACHE_NAME version not found');
+          const swVersion = cacheMatch[1];
+          const regMatch = reg.match(/sw\.js\?v=([^`'"$]+)/);
+          if (!regMatch) throw new Error('versioned service worker registration missing');
+          if (regMatch[1] !== swVersion) throw new Error(`SW registration mismatch: ${regMatch[1]} != ${swVersion}`);
+          if (!/updateViaCache:\s*['"]none['"]/.test(reg)) throw new Error('updateViaCache none missing');
+
+          for (const token of ["request.headers.has('authorization')", "request.headers.has('cookie')", "request.headers.has('range')", "request.headers.has('if-range')", "response.status === 206", "response.headers.has('set-cookie')", "response.headers.has('content-range')"]) {
+            if (!sw.includes(token)) throw new Error(`missing cache safety check: ${token}`);
+          }
+          if (!/key === 'range'/.test(sw) || !/key === 'if-range'/.test(sw)) throw new Error('Vary range/if-range response protection missing');
+          if (!/key\.startsWith\(CACHE_PREFIX\)/.test(sw)) throw new Error('cache cleanup must be app-prefixed');
+          if (!/PRIVATE_PATH/.test(sw) || !/PRIVATE_QUERY_KEYS/.test(sw)) throw new Error('private route/query exclusions missing');
+
+          for (const token of ['name:', 'short_name:', 'start_url:', 'display:', 'theme_color:', 'background_color:', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'maskable']) {
+            if (!manifest.includes(token)) throw new Error(`manifest requirement missing: ${token}`);
+          }
+          if (!/themeColor/.test(layout) || !/viewport/i.test(layout)) throw new Error('mobile/theme metadata missing');
+          if (!fs.existsSync('public/icon-192.png') || !fs.existsSync('public/icon-512.png') || !fs.existsSync('public/icon-512-maskable.png')) throw new Error('required PNG icons missing');
+          NODE
