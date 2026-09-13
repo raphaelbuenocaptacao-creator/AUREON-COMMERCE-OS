@@ -1,3 +1,4 @@
+# Revalidates the final guarded production HEAD after SW auto-alignment.
 name: AUREON Commerce PWA Audit
 
 on:
