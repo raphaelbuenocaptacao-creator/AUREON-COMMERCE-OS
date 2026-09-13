@@ -1,0 +1,54 @@
+name: Commerce OS PWA Version Guard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+      - name: Align service worker safety/version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          sw_path = Path('public/sw.js')
+          reg_path = Path('app/pwa-register.tsx')
+          sw = sw_path.read_text()
+          reg = reg_path.read_text()
+
+          sw = sw.replace('shell-v10-private-vary-star-safe', 'shell-v11-private-vary-range-safe')
+          old_vary = "key === '*' || key === 'cookie' || key === 'authorization'"
+          new_vary = old_vary + " || key === 'range' || key === 'if-range'"
+          if "key === 'range'" not in sw.split('varyKeys.some', 1)[-1]:
+              sw = sw.replace(old_vary, new_vary)
+
+          reg = reg.replace('sw.js?v=10-private-vary-star-safe', 'sw.js?v=shell-v11-private-vary-range-safe')
+          reg = reg.replace('sw.js?v=shell-v10-private-vary-star-safe', 'sw.js?v=shell-v11-private-vary-range-safe')
+
+          sw_path.write_text(sw)
+          reg_path.write_text(reg)
+          PY
+      - name: Commit guarded PWA state when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- public/sw.js app/pwa-register.tsx; then
+            echo 'PWA guard already aligned.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/sw.js app/pwa-register.tsx
+          git commit -m 'fix(pwa): align Commerce OS SW v11 and range vary safety'
+          git push
