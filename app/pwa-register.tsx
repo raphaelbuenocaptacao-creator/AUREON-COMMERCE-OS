@@ -18,10 +18,13 @@ export default function PwaRegister() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
     const swUrl = `${basePath}/sw.js?v=shell-v11-private-vary-range-safe`;
     const scope = `${basePath}/` || '/';
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let registration: ServiceWorkerRegistration | null = null;
+    let reloading = false;
 
     const register = async () => {
       try {
-        const registration = await navigator.serviceWorker.register(swUrl, {
+        registration = await navigator.serviceWorker.register(swUrl, {
           scope,
           updateViaCache: 'none',
         });
@@ -29,6 +32,18 @@ export default function PwaRegister() {
       } catch (error) {
         console.error('Falha ao registrar o service worker do AUREON Commerce OS', error);
       }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && registration) {
+        void registration.update();
+      }
+    };
+
+    const onControllerChange = () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      window.location.reload();
     };
 
     const onBeforeInstallPrompt = (event: Event) => {
@@ -40,6 +55,8 @@ export default function PwaRegister() {
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onAppInstalled);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
     if (document.readyState === 'complete') void register();
     else window.addEventListener('load', register, { once: true });
@@ -48,6 +65,8 @@ export default function PwaRegister() {
       window.removeEventListener('load', register);
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onAppInstalled);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
     };
   }, []);
 
