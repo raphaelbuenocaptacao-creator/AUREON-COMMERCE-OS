@@ -39,6 +39,9 @@ jobs:
           if (!regMatch) throw new Error('versioned service worker registration missing');
           if (regMatch[1] !== swVersion) throw new Error(`SW registration mismatch: ${regMatch[1]} != ${swVersion}`);
           if (!/updateViaCache:\s*['"]none['"]/.test(reg)) throw new Error('updateViaCache none missing');
+          if (!/window\.location\.protocol\s*===\s*['"]https:['"]/.test(reg) || !/localhost/.test(reg) || !/127\.0\.0\.1/.test(reg)) throw new Error('secure-context service worker guard missing');
+          if (!/visibilitychange/.test(reg) || !/document\.visibilityState\s*===\s*['"]visible['"]/.test(reg) || !/registration\.update\(\)/.test(reg)) throw new Error('service worker refresh-on-resume missing');
+          if (!/navigator\.serviceWorker\.controller/.test(reg) || !/controllerchange/.test(reg) || !/location\.reload\(\)/.test(reg)) throw new Error('safe service worker controller handoff missing');
 
           for (const token of ["request.headers.has('authorization')", "request.headers.has('cookie')", "request.headers.has('range')", "request.headers.has('if-range')", "response.status === 206", "response.headers.has('set-cookie')", "response.headers.has('content-range')"]) {
             if (!sw.includes(token)) throw new Error(`missing cache safety check: ${token}`);
